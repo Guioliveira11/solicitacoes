@@ -1,0 +1,42 @@
+ SELECT 
+	--Convertendo data para mês e ano 
+	TO_CHAR(data_solicitacao, 'YYYY-MM') as mes_ano,
+	--Contando o total de solicitações 
+	COUNT(data_solicitacao) as total_solicitacoes,
+     --Calculando a média de diferença de tempo entre a data de coleta e a data de solicitação
+    ROUND(AVG(CASE 
+               WHEN (data_coleta - data_solicitacao) > INTERVAL '0 second' 
+               THEN EXTRACT(EPOCH FROM (data_coleta - data_solicitacao)) / 60
+               ELSE NULL END)) AS tempo_entre_solicitacao_coleta,			   
+	--Coletas realizadas antes de 30 minutos 
+	SUM(CASE
+			WHEN (data_coleta - data_solicitacao) <= interval '30 minute' THEN 1
+			ELSE 0
+			END) as qtd_antes_30_minutos,
+	 --Coletas realizadas após 30 minutos 
+	SUM(CASE
+			WHEN (data_coleta - data_solicitacao) > interval '30 minute' THEN 1
+			ELSE 0
+			END) as qtd_apos_30_minutos,
+   --Solicitações do periodo diurno   
+	SUM(CASE 
+	  	  WHEN EXTRACT(HOUR FROM data_coleta) BETWEEN 7 AND 19 THEN 1
+	   	  ELSE 0
+	      END) as qtd_diurno,
+   --Solicitações do periodo noturno    
+	SUM(CASE 
+	     WHEN EXTRACT(HOUR FROM data_coleta) BETWEEN 19 AND 23 OR EXTRACT(HOUR FROM data_coleta) BETWEEN 0 AND 6 THEN 1
+         ELSE 0
+	     END) as qtd_noturno,
+		 count(data_coleta)
+	FROM tasy.pp_exame_lab
+	--Filtrando dados antes melhoria
+	WHERE data_solicitacao BETWEEN '2024-01-01' AND '2024-07-31'	
+	--Filtrando dados após a melhoria
+	OR data_solicitacao BETWEEN '2024-08-01' AND '2024-12-31'
+    --Agrupando por mês de inclusão
+	GROUP BY 
+    	TO_CHAR(data_solicitacao, 'YYYY-MM')
+		
+	ORDER BY 
+		mes_ano,qtd_diurno, qtd_noturno, total_solicitacoes, tempo_entre_solicitacao_coleta, qtd_antes_30_minutos, qtd_apos_30_minutos
